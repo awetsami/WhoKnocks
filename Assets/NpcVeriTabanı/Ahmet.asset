@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ccfdcab3142cf3d41995a8aa225e21a3, type: 3}
+  m_Name: Ahmet
+  m_EditorClassIdentifier: 
+  familyID: 
+  relationType: 
+  isAggressive: 0
+  dislikedJobs: []
+  familyMemberFoundNode: {fileID: 0}
+  adSoyad: ahmet
+  meslek: Doktor
+  yas: 21
+  fotograf: {fileID: 0}
+  normalDoorTopics:
+  - {fileID: 11400000, guid: e56aa969730bb2e419b0c2bc382fca18, type: 2}
+  normalSeatTopics:
+  - {fileID: 0}
+  anomalyDoorTopics:
+  - {fileID: 11400000, guid: e56aa969730bb2e419b0c2bc382fca18, type: 2}
+  anomalySeatTopics: []

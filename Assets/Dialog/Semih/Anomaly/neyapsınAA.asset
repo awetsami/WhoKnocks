@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
+  m_Name: "neyaps\u0131nAA"
+  m_EditorClassIdentifier: 
+  npcText: "sa\xE7\u0131n\u0131  pe\xE7ete yerine yapraklam\u0131 silmeyi d\xFC\u015F\xFCn\xFCyorsun
+    alsana \u015Funlar\u0131"
+  textA: "sa\xE7\u0131m\u0131 neden pe\xE7ete ile sileyim ki"
+  nextNodeA: {fileID: 11400000, guid: 170342f47d810f24382ea2a2e862a928, type: 2}
+  textB: "hmm i\u015Fime yarayabilir gel i\xE7eri"
+  nextNodeB: {fileID: 11400000, guid: 80f0e1307e651464190741a2769db06c, type: 2}
+  actionKey: 
+  isEndNode: 0

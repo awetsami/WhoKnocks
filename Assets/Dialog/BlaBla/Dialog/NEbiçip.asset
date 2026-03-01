@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
+  m_Name: "NEbi\xE7ip"
+  m_EditorClassIdentifier: 
+  npcText: "sanane gardas uzatma al i\xE7eri"
+  textA: Tamam kes
+  nextNodeA: {fileID: 11400000, guid: 9e28abf1756847b48a801a65cd4cf42f, type: 2}
+  textB: defol git
+  nextNodeB: {fileID: 11400000, guid: 0f3b6a2b033cc9c40b34c51f9403924b, type: 2}
+  actionKey: 
+  isEndNode: 0
