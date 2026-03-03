@@ -193,6 +193,9 @@ public class InteractionSystem : MonoBehaviour
     }
     void TryInteract(GameObject target)
     {
+        //bilgisayar etkileşimi
+        BunkerComputer computer = target.GetComponentInParent<BunkerComputer>();
+        if (computer != null) { computer.ToggleComputer(); return; }
         // 1. ÖNCELİK: Sığınak Sistemleri (Fan, Sandık, Kapı vb. eline alamayacağın sabit şeyler)
         VentilationSystem vent = target.GetComponentInParent<VentilationSystem>();
         if (vent != null) { vent.ToggleVentilation(); return; }

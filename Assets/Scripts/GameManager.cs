@@ -11,6 +11,13 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
+    [Header("Dünya Durumu")]
+    public bool isUnderSiege = false; // Gerilim dolu Kuþatma Modu
+
+    [Header("Ekonomi ve Vergi Sistemi")]
+    public int currentMoney = 0; // Oyuncunun karaborsadan kazandýðý ve bilgisayarda harcayabileceði kredi
+    public int taxPaidSoFar = 0; // Doðrudan Devletin Vergi Kutusuna atýlan toplam deðer
+
     [Header("Oyun Ýçi Uyarý Sistemi")]
     public TMP_Text warningText;
 
@@ -69,7 +76,13 @@ public class GameManager : MonoBehaviour
     private float knockTimer;
 
     void Awake() { if (Instance == null) Instance = this; else Destroy(gameObject); }
+    public void TriggerAnomalyInvasion()
+    {
+        isUnderSiege = true;
+        ShowWarning("<color=red>SÝLAH SESLERÝ ANOMALÝLERÝ ÇEKTÝ! SIÐINAK KUÞATMA ALTINDA!</color>");
 
+        // Gelecekte buraya: Anomali spawn kodunu (Spawner.StartSiege()) ekleyeceðiz.
+    }
     void Start()
     {
         remainingCharacters = new List<NpcProfile>(allCharacters);
@@ -437,6 +450,8 @@ public class GameManager : MonoBehaviour
     // --- SAVE / LOAD SÝSTEMÝ (FÝZÝKSEL DÜNYA) ---
     public void SaveGameData()
     {
+        PlayerPrefs.GetInt("SavedTax", taxPaidSoFar);
+        PlayerPrefs.SetInt("SavedMoney", currentMoney);
         PlayerPrefs.SetInt("SavedDay", currentDay);
         PlayerPrefs.SetInt("SavedFood", foodStock);
         PlayerPrefs.SetInt("SavedTax", taxAmount);
@@ -473,6 +488,8 @@ public class GameManager : MonoBehaviour
 
     public void LoadGameData()
     {
+        taxPaidSoFar = PlayerPrefs.GetInt("SavedTax", 100);
+        currentMoney = PlayerPrefs.GetInt("SavedMoney", 0);
         currentDay = PlayerPrefs.GetInt("SavedDay", 1);
         foodStock = PlayerPrefs.GetInt("SavedFood", 25);
         taxAmount = PlayerPrefs.GetInt("SavedTax", 5);

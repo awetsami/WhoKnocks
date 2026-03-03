@@ -5,6 +5,13 @@ using System.Collections;
 
 public class VisitorController : MonoBehaviour
 {
+    // --- KEMAL (VERGÝ) ÖZEL DEÐÝÞKENLERÝ ---
+    [Header("Kemal - Vergi ve Saldýrý")]
+    public int requiredTax = 100; // Ýstenen vergi
+    public GameObject kemalMachineGun; // Kemal'in elindeki silah (Sadece Kemal'de görünür olacak)
+    public ParticleSystem muzzleFlash; // Namlu ateþi
+    public AudioSource machineGunAudio; // Tarama sesi
+
     [Header("Bileþenler")]
     public NavMeshAgent agent;
     public NpcAnatomy anatomy;
@@ -303,5 +310,52 @@ public class VisitorController : MonoBehaviour
 
     // Diyalog butonlarýna baðlamak için (Opsiyonel)
     public void AcceptVisitor() { EnterShelter(); }
+    // --- KEMAL VERGÝ VE SALDIRI SÝSTEMÝ ---
+
+    // Diyalog sistemindeki actionKey (örn: "VergiOde") doðrudan bu fonksiyonu çaðýrmalý
+    public void TryPayTax()
+    {
+        // KEMAL SADECE VERGÝ KUTUSUNUN ÝÇÝNE BAKAR!
+        if (GameManager.Instance.taxPaidSoFar >= requiredTax)
+        {
+            // Kutudaki vergiyi sýfýrla/düþ (Devlet aldý ve gitti)
+            GameManager.Instance.taxPaidSoFar -= requiredTax;
+
+            Debug.Log("<color=green>Kemal: 'Kutuyu kontrol ettim. Akýllý çocuk.' (Vergi Ödendi)</color>");
+            GameManager.Instance.ShowWarning("<color=green>Kemal Vergiyi Kutudan Tahsil Etti.</color>");
+
+            LeaveShelter();
+        }
+        else
+        {
+            // KUTU BOÞ VEYA EKSÝK!
+            int eksik = requiredTax - GameManager.Instance.taxPaidSoFar;
+            Debug.Log($"<color=red>Kemal: 'Kutuda {eksik}$ eksik var! Benimle dalga mý geçiyorsun?!'</color>");
+
+            TriggerKemalRage(); // Makinalý tüfek ateþlenir!
+        }
+    }
+
+    private void TriggerKemalRage()
+    {
+        // 1. Diyalog arayüzünü anýnda kapat (Bunu kendi diyalog yöneticine göre uyarla)
+        // DialogueManager.Instance.CloseDialogue();
+
+        // 2. Silahý görünür yap ve animasyonu baþlat
+        if (kemalMachineGun != null) kemalMachineGun.SetActive(true);
+
+        // Eðer Kemal'in gövdesinde bir Animator varsa ateþ etme animasyonunu tetikle
+        Animator anim = anatomy.GetComponentInChildren<Animator>();
+        if (anim != null) anim.SetTrigger("StartShooting");
+
+        // 3. Efektleri Patlat
+        if (machineGunAudio != null) machineGunAudio.Play();
+        if (muzzleFlash != null) muzzleFlash.Play();
+
+        GameManager.Instance.ShowWarning("<color=red>KAPI TARRRANIYOR! SÝPER AL!</color>");
+
+        // 4. OYUN DÜNYASINA "ÝSTÝLA" EMRÝ VER (Anomalileri Çaðýr)
+        GameManager.Instance.TriggerAnomalyInvasion();
+    }
     public void RejectVisitor() { LeaveShelter(); }
 }
