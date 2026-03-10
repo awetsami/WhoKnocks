@@ -161,4 +161,15 @@ public class PlayerStats : MonoBehaviour
         // YENİ: Şarj İstasyonu Mantığı! Sadece sabaha geçişte tam dolar.
         oxygen = maxOxygen;
     }
+    // YENİ: Oyuncu elindeki FİZİKSEL YEMEĞİ yediğinde dışarıdan çağırılacak fonksiyon
+    public void EatPhysicalFood(float restoreAmount)
+    {
+        // Açlığı artır, ama 100'ü geçmesin
+        hunger = Mathf.Min(100f, hunger + restoreAmount);
+
+        // Opsiyonel: Yemek yendiğinde biraz da sağlık verebilir (örn: 5 can)
+        health = Mathf.Min(100f, health + 5f);
+
+        Debug.Log($"<color=green>Oyuncu kendi yemeğini yedi! Yeni Açlık: {hunger}</color>");
+    }
 }

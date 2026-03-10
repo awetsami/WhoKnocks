@@ -30,13 +30,16 @@ public class InteractionSystem : MonoBehaviour
         }
         return 1f; // Araba tutulmuyorsa normal hızda (1x) devam et
     }
+
     void Update()
     {
         GameObject currentTarget = GetBestTarget();
         HandleUIBuffer(currentTarget);
 
+        // --- ETKİLEŞİM [E TUŞU] ---
         if (Input.GetKeyDown(KeyCode.E))
         {
+            // 1. Durum: Araba Tutuyorsak Arabayı Bırak
             if (heldWheelbarrow != null)
             {
                 heldWheelbarrow.ToggleGrab(wheelbarrowHoldPoint);
@@ -45,12 +48,35 @@ public class InteractionSystem : MonoBehaviour
                 return;
             }
 
+            // 2. Durum: Elimiz BOŞSA dünyadaki eşyalarla/sistemlerle etkileşime geç
             if (heldObj == null)
             {
                 if (currentTarget != null) TryInteract(currentTarget);
             }
+            // 3. Durum: Elimizde BİR EŞYA VARSA özel "E" tuşu yeteneklerini kullan
             else
             {
+                // A) YEMEK YEME MANTIĞI
+                LootableItem lItem = heldObj.GetComponent<LootableItem>();
+                if (lItem != null && lItem.itemType == LootableItem.ItemType.Food)
+                {
+                    if (PlayerStats.Instance != null)
+                    {
+                        PlayerStats.Instance.EatPhysicalFood(lItem.value * 25f);
+                    }
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.ShowWarning("<color=green>Konserve Yendi! (Açlık Giderildi)</color>");
+                    }
+
+                    Destroy(heldObj);
+                    heldObj = null;
+                    heldObjRb = null;
+                    if (infoText) infoText.text = "";
+                    return; // Yedik ve E tuşu işlemini bitirdik.
+                }
+
+                // B) KİMLİK GERİ VERME MANTIĞI (Eğer elimizdeki yemek değil de kimlikse)
                 if (currentTarget != null)
                 {
                     VisitorController visitor = currentTarget.GetComponentInParent<VisitorController>();
@@ -65,6 +91,7 @@ public class InteractionSystem : MonoBehaviour
             }
         }
 
+        // --- PİL DOLDURMA [G TUŞU] ---
         if (Input.GetKeyDown(KeyCode.G))
         {
             if (heldObj != null)
@@ -82,21 +109,19 @@ public class InteractionSystem : MonoBehaviour
             }
         }
 
-        if (Input.GetMouseButtonDown(1) && heldObj != null) DropObject(false);
-        if (Input.GetMouseButtonDown(0) && heldObj != null) DropObject(true);
-    }
+        // --- EŞYA BIRAKMA VEYA FIRLATMA (Fiziksel Etkileşimler) ---
 
-    void LateUpdate()
-    {
-        if (heldObj != null) MoveObject();
-    }
+        // SAĞ TIK: Normal bir şekilde usulca yere bırak
+        if (Input.GetMouseButtonDown(1) && heldObj != null)
+        {
+            DropObject(false);
+        }
 
-    void GiveCardBack(VisitorController visitor)
-    {
-        visitor.TakeCardBack();
-        Destroy(heldObj);
-        heldObj = null;
-        if (infoText) infoText.text = "";
+        // SOL TIK: Mermi gibi ileri fırlat (Eşya ne olursa olsun fırlatır)
+        if (Input.GetMouseButtonDown(0) && heldObj != null)
+        {
+            DropObject(true);
+        }
     }
 
     void UpdateUI(GameObject target)
@@ -109,23 +134,33 @@ public class InteractionSystem : MonoBehaviour
             return;
         }
 
+        // ELİMİZDE BİR ŞEY VARKEN UI NE DİYECEK?
         if (heldObj != null)
         {
+            LootableItem lItem = heldObj.GetComponent<LootableItem>();
+
+            // Eğer elimizdeki Yemekse özel menü göster
+            if (lItem != null && lItem.itemType == LootableItem.ItemType.Food)
+            {
+                infoText.text = "Konserve Yemek\n[E] Ye\n[Sol Tık] Fırlat\n[Sağ Tık] Bırak";
+                return;
+            }
+
             if (heldObj.GetComponent<IDCard>())
             {
                 if (target != null && target.GetComponentInParent<VisitorController>()) { infoText.text = "Kimliği Geri Ver [E]"; return; }
-                infoText.text = "Kimlik\n[Sağ Tık] Bırak"; return;
+                infoText.text = "Kimlik\n[Sol Tık] Fırlat\n[Sağ Tık] Bırak"; return;
             }
-            if (heldObj.GetComponent<BatteryItem>()) { infoText.text = "UV Pili\n[G] Cihaza Yükle\n[Sağ Tık] Bırak"; return; }
+            if (heldObj.GetComponent<BatteryItem>()) { infoText.text = "UV Pili\n[G] Cihaza Yükle\n[Sol Tık] Fırlat\n[Sağ Tık] Bırak"; return; }
             if (heldObj.GetComponent<LootableItem>()) { infoText.text = "Ganimet\n[Sol Tık] Fırlat\n[Sağ Tık] Bırak"; return; }
 
-            infoText.text = "Eşya\n[Sağ Tık] Bırak";
+            infoText.text = "Eşya\n[Sol Tık] Fırlat\n[Sağ Tık] Bırak";
             return;
         }
 
         if (target == null) { infoText.text = ""; return; }
 
-        // 1. ÖNCELİK: Alınabilir Eşyalar (Arabaya öncelik verirsek içindeki eşyayı göremeyiz)
+        // 1. ÖNCELİK: Alınabilir Eşyalar
         if (target.GetComponentInParent<LootableItem>()) { infoText.text = "Ganimet\nAl [E]"; return; }
         if (target.GetComponentInParent<BatteryItem>()) { infoText.text = "UV Pili\nAl [E]"; return; }
         if (target.GetComponentInParent<IDCard>()) { infoText.text = "Kimlik\nİncele [E]"; return; }
@@ -163,6 +198,21 @@ public class InteractionSystem : MonoBehaviour
         infoText.text = "";
     }
 
+    void LateUpdate()
+    {
+        if (heldObj != null) MoveObject();
+    }
+
+    void GiveCardBack(VisitorController visitor)
+    {
+        visitor.TakeCardBack();
+        Destroy(heldObj);
+        heldObj = null;
+        if (infoText) infoText.text = "";
+    }
+
+    
+
     void HandleUIBuffer(GameObject currentTarget)
     {
         if (heldObj != null || heldWheelbarrow != null)
@@ -191,12 +241,14 @@ public class InteractionSystem : MonoBehaviour
             }
         }
     }
+
     void TryInteract(GameObject target)
     {
         //bilgisayar etkileşimi
         BunkerComputer computer = target.GetComponentInParent<BunkerComputer>();
         if (computer != null) { computer.ToggleComputer(); return; }
-        // 1. ÖNCELİK: Sığınak Sistemleri (Fan, Sandık, Kapı vb. eline alamayacağın sabit şeyler)
+
+        // 1. ÖNCELİK: Sığınak Sistemleri
         VentilationSystem vent = target.GetComponentInParent<VentilationSystem>();
         if (vent != null) { vent.ToggleVentilation(); return; }
 
@@ -246,18 +298,13 @@ public class InteractionSystem : MonoBehaviour
         {
             if (((1 << hit.collider.gameObject.layer) & wallLayer) != 0) return null;
 
-            // Araba
             if (hit.collider.GetComponentInParent<WheelbarrowController>()) return hit.collider.gameObject;
-
-            // Sistemler ve Etkileşimler
             if (hit.collider.GetComponentInParent<VentilationSystem>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<LootBox>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<HatchController>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<BedController>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<DoorController>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<VisitorController>()) return hit.collider.gameObject;
-
-            // Eşyalar
             if (hit.collider.GetComponentInParent<LootableItem>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<BatteryItem>()) return hit.collider.gameObject;
             if (hit.collider.GetComponentInParent<IDCard>()) return hit.collider.gameObject;
@@ -265,12 +312,53 @@ public class InteractionSystem : MonoBehaviour
         }
         return null;
     }
+
+    void DropObject(bool isThrow)
+    {
+        if (heldObj == null) return;
+
+        // 1. ADIM: Eğer yavaşça bırakıyorsak (Sağ Tık) ve yanımızda raf varsa yuvaya oturtmayı dene
+        if (!isThrow && PantryShelf.Instance != null)
+        {
+            LootableItem lItem = heldObj.GetComponent<LootableItem>();
+            if (lItem != null && lItem.itemType == LootableItem.ItemType.Food)
+            {
+                Transform bestSlot = PantryShelf.Instance.GetClosestEmptySlot(heldObj.transform.position);
+                if (bestSlot != null)
+                {
+                    PantryShelf.Instance.SnapToSlot(heldObj, bestSlot);
+                    heldObj = null;
+                    heldObjRb = null;
+                    if (infoText) infoText.text = "";
+                    return; // Yuvaya girdi, aşağı düşmesine gerek yok
+                }
+            }
+        }
+
+        // 2. ADIM: Normal Bırakma veya Fırlatma
+        heldObjRb.isKinematic = false;
+        heldObjRb.interpolation = RigidbodyInterpolation.Interpolate;
+        Collider[] cols = heldObj.GetComponentsInChildren<Collider>();
+        foreach (Collider c in cols) c.enabled = true;
+
+        if (isThrow) heldObjRb.AddForce(transform.forward * throwForce);
+
+        LootableItem loot = heldObj.GetComponent<LootableItem>();
+        if (loot != null) loot.isHeld = false;
+
+        heldObj = null;
+        heldObjRb = null;
+    }
+
+    // --- BU FONKSİYON PickUpObject İÇİNDE RAFI GÜNCELLER ---
     void PickUpObject(GameObject pickObj)
     {
+        // YENİ: Eğer raftan alıyorsak rafın o yuvayı boşaltmasını sağla
+        if (PantryShelf.Instance != null) PantryShelf.Instance.RemoveFromSlot(pickObj);
+
         Rigidbody rb = pickObj.GetComponentInParent<Rigidbody>();
         if (rb != null)
         {
-            // Eğer eşya arabanın içinden alınıyorsa, arabanın envanterinden düşür
             WheelbarrowStorage storage = pickObj.GetComponentInParent<WheelbarrowStorage>();
             LootableItem loot = pickObj.GetComponentInParent<LootableItem>();
 
@@ -288,21 +376,6 @@ public class InteractionSystem : MonoBehaviour
 
             if (loot != null) loot.isHeld = true;
         }
-    }
-
-    void DropObject(bool isThrow)
-    {
-        heldObjRb.isKinematic = false;
-        heldObjRb.interpolation = RigidbodyInterpolation.Interpolate;
-        Collider[] cols = heldObj.GetComponentsInChildren<Collider>();
-        foreach (Collider c in cols) c.enabled = true;
-
-        if (isThrow) heldObjRb.AddForce(transform.forward * throwForce);
-
-        LootableItem loot = heldObj.GetComponent<LootableItem>();
-        if (loot != null) loot.isHeld = false;
-
-        heldObj = null;
     }
 
     void MoveObject()

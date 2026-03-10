@@ -4,6 +4,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 using System.Linq;
+using System.Globalization;
 
 public enum DayPhase { Daytime, Nighttime }
 
@@ -11,6 +12,11 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
+    [Header("Dünyayý Kaydetme (World State)")]
+    public GameObject visitorPrefab; // Ýçeri aldýðýmýz insanlarý yeniden yaratmak için ana prefab
+    public List<GameObject> allItemPrefabs; // Oyundaki TÜM fiziksel eþyalarýn prefablarý (Unity Editörden sürüklenecek)
+
+    // Not: allCharacters listesi (NpcProfile'larý tutan liste) zaten GameManager'da var varsayýyorum.
     [Header("Dünya Durumu")]
     public bool isUnderSiege = false; // Gerilim dolu Kuþatma Modu
 
@@ -65,7 +71,6 @@ public class GameManager : MonoBehaviour
     [Header("Karakter Havuzu")]
     public List<NpcProfile> allCharacters;
     private List<NpcProfile> remainingCharacters;
-    public GameObject visitorPrefab;
     public Transform spawnPoint, hatchLedge;
     public DoorController mainDoor;
     public List<Transform> pathToDoor, pathToSeat, pathToExit;
@@ -85,24 +90,32 @@ public class GameManager : MonoBehaviour
     }
     void Start()
     {
+        // 1. Temel Listeleri Hazýrla
         remainingCharacters = new List<NpcProfile>(allCharacters);
         SimulateWar();
+        foodStock = 0; // Trigger'lar sayana kadar sýfýr kalsýn
 
-        // YENÝ: Ana menüden "Devam Et" sinyali geldiyse verileri yükle!
+        // 2. Yükleme mi yoksa Yeni Oyun mu?
         if (PlayerPrefs.GetInt("LoadRequested", 0) == 1)
         {
             LoadGameData();
-            PlayerPrefs.SetInt("LoadRequested", 0); // Sinyali sýfýrla ki öldüðünde bug olmasýn
+            PlayerPrefs.SetInt("LoadRequested", 0);
+        }
+        else
+        {
+            // Tamamen Yeni Oyun: Baþlangýç erzaklarýný pýt pýt dökelim
+            if (PantryShelf.Instance != null) PantryShelf.Instance.SpawnInitialFood(25);
         }
 
-        if (transitionPanel) { transitionPanel.alpha = 1; transitionPanel.gameObject.SetActive(true); }
-        remainingCharacters = new List<NpcProfile>(allCharacters);
-        SimulateWar();
-
+        // 3. UI ve Dinamikleri Hazýrla
         if (transitionPanel) { transitionPanel.alpha = 1; transitionPanel.gameObject.SetActive(true); }
         if (confirmationPanel) confirmationPanel.SetActive(false);
-        if (btnYes) btnYes.onClick.AddListener(ConfirmSleep);
-        if (btnNo) btnNo.onClick.AddListener(CancelSleep);
+
+        // Buton Dinleyicileri (Zaten atanmýþlarsa tekrar atamaz)
+        btnYes?.onClick.RemoveAllListeners();
+        btnYes?.onClick.AddListener(ConfirmSleep);
+        btnNo?.onClick.RemoveAllListeners();
+        btnNo?.onClick.AddListener(CancelSleep);
 
         UpdateStatsUI();
         StartCoroutine(DayStartSequence(true));
@@ -217,6 +230,7 @@ public class GameManager : MonoBehaviour
         warningText.gameObject.SetActive(false);
     }
     // --- GÜN DÖNGÜSÜ ---
+    // --- GÜN DÖNGÜSÜ ---
     IEnumerator DayStartSequence(bool isFirstDay)
     {
         kemalSpawnedToday = false;
@@ -249,12 +263,21 @@ public class GameManager : MonoBehaviour
             }
             for (int i = 0; i < batteriesFound; i++) Instantiate(batteryPrefab, lootTablePos.position + Random.insideUnitSphere * 0.1f, lootTablePos.rotation);
 
-            // GECE HAVALANDIRMA BOZULDU MU VEYA TAMÝR EDÝLDÝ MÝ KONTROLÜ
-           
-
             consumedLastNight = CalculateConsumption();
-            foodStock -= consumedLastNight;
-            if (foodStock < 0) foodStock = 0;
+
+            // --- YENÝ AÇLIKTAN ÖLÜM MANTIÐI ---
+            if (foodStock >= consumedLastNight)
+            {
+                // Kasada yeterli yemek var, afiyet olsun!
+                foodStock -= consumedLastNight;
+                if (PantryShelf.Instance != null) PantryShelf.Instance.ConsumePhysicalFood(consumedLastNight);
+            }
+            else
+            {
+                // GECE MASAYA OTURDULAR AMA YEMEK YOK! OYUN BÝTTÝ!
+                EndGame(false);
+                yield break; // Coroutine'i (Yeni günü) anýnda durdur
+            }
 
             // YENÝ: HandleNightEvents'a mühendis bilgisini gönderiyoruz
             string nightEvent = HandleNightEvents(hasEngineer);
@@ -271,11 +294,10 @@ public class GameManager : MonoBehaviour
         if (!isFirstDay && transitionLogText) { transitionLogText.text = report; StartCoroutine(ClearLogText()); }
 
         UpdateStatsUI();
-        if (foodStock <= 0) EndGame(false); else StartDayLogic();
-    }
 
-    // --- GECE OLAYLARI ---
-    // --- GECE OLAYLARI (Artýk hasEngineer parametresi alýyor) ---
+        // YENÝ: Sabah kontrolünü kaldýrdýk, sadece gece ölümü geçerli. Direkt günü baþlatýyoruz.
+        StartDayLogic();
+    }
     string HandleNightEvents(bool hasEngineer)
     {
         if (Random.Range(0, 100) > 30) return "";
@@ -347,6 +369,9 @@ public class GameManager : MonoBehaviour
         f = 0;
         while (f < 1.5f) { f += Time.deltaTime; transitionPanel.alpha = 1 - (f / 1.5f); yield return null; }
         transitionPanel.gameObject.SetActive(false);
+        // YENÝ: Gece geçiþi bittiðinde fareyi gizle ve ekrana kilitle!
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     // --- YARDIMCI FONKSÝYONLAR ---
@@ -357,7 +382,15 @@ public class GameManager : MonoBehaviour
     public void ProcessDecision(VisitorController v, bool a) { if (currentVisitor == v.gameObject) currentVisitor = null; UpdateStatsUI(); }
     public void RegisterResident(VisitorController p) { if (!residents.Contains(p)) residents.Add(p); }
     public void UnregisterResident(VisitorController p) { residents.Remove(p); }
-    void UpdateStatsUI() { if (statsText) statsText.text = "YEMEK: " + foodStock; }
+    public void UpdateStatsUI()
+    {
+        if (statsText != null)
+        {
+            statsText.text = "YEMEK: " + foodStock;
+            // UI'ýn anýnda ekrana basýlmasýný garanti eder
+            Canvas.ForceUpdateCanvases();
+        }
+    }
     void Update() { if (currentPhase == DayPhase.Daytime && currentVisitor == null && visitorsSpawned < visitorsToday) { knockTimer -= Time.deltaTime; if (knockTimer <= 0) SpawnVisitor(); } }
     public void TryToSleep() { confirmationPanel.SetActive(true); confirmationInfoText.text = currentPhase == DayPhase.Daytime ? "Geceye geçilsin mi?" : "Sabah olsun mu?"; Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
 
@@ -400,7 +433,12 @@ public class GameManager : MonoBehaviour
     }
 
     public void CancelSleep() { confirmationPanel.SetActive(false); Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
-    void StartDayLogic() { visitorsSpawned = 0; visitorsToday = Random.Range(1, 4); dayText.text = "GÜN " + currentDay; knockTimer = Random.Range(3f, 6f); }
+    void StartDayLogic()
+    {
+        visitorsSpawned = 0; visitorsToday = Random.Range(1, 4); dayText.text = "GÜN " + currentDay; knockTimer = Random.Range(3f, 6f);
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
     public void EndGame(bool win)
     {
         // 1. Arayüzü (UI) ve Fareyi Aç
@@ -448,21 +486,54 @@ public class GameManager : MonoBehaviour
     }
     IEnumerator ClearLogText() { yield return new WaitForSeconds(6f); transitionLogText.text = ""; }
     // --- SAVE / LOAD SÝSTEMÝ (FÝZÝKSEL DÜNYA) ---
+    // --- SAVE / LOAD SÝSTEMÝ (FÝZÝKSEL DÜNYA) ---
+    // --- SAVE / LOAD SÝSTEMÝ (FÝZÝKSEL DÜNYA) ---
     public void SaveGameData()
     {
-        PlayerPrefs.GetInt("SavedTax", taxPaidSoFar);
+        // 1. TEMEL DEÐERLERÝ KAYDET
+        PlayerPrefs.SetInt("SavedTaxPaid", taxPaidSoFar);
         PlayerPrefs.SetInt("SavedMoney", currentMoney);
         PlayerPrefs.SetInt("SavedDay", currentDay);
-        PlayerPrefs.SetInt("SavedFood", foodStock);
-        PlayerPrefs.SetInt("SavedTax", taxAmount);
+        PlayerPrefs.SetInt("SavedFood", foodStock); // Stok sayýsýný sayý olarak tutuyoruz
+        PlayerPrefs.SetInt("SavedTaxAmount", taxAmount);
 
+        // 2. SIÐINAKTAKÝ ZÝYARETÇÝLERÝ KAYDET
+        string residentSave = "";
+        foreach (var res in residents)
+        {
+            if (res != null && res.assignedProfile != null)
+            {
+                residentSave += $"{res.assignedProfile.name},{res.isAnomalyActive}|";
+            }
+        }
+        PlayerPrefs.SetString("SavedResidents", residentSave);
+
+        // 3. FÝZÝKSEL EÞYALARI KAYDET (Yemekler Hariç!)
+        string itemSave = "";
+        PhysicalItem[] allItemsInScene = FindObjectsByType<PhysicalItem>(FindObjectsSortMode.None);
+        foreach (PhysicalItem item in allItemsInScene)
+        {
+            // KURAL: Eðer bu bir yemekse (LootableItem.Food), onu fiziksel kaydetme! 
+            // Çünkü LoadGameData sonunda 'SavedFood' sayýsý kadarýný rafa baþtan dizeceðiz.
+            LootableItem loot = item.GetComponent<LootableItem>();
+            if (loot != null && loot.itemType == LootableItem.ItemType.Food) continue;
+
+            string cleanName = item.gameObject.name.Replace("(Clone)", "").Trim();
+            itemSave += $"{cleanName},{item.transform.position.x.ToString(CultureInfo.InvariantCulture)}," +
+                        $"{item.transform.position.y.ToString(CultureInfo.InvariantCulture)}," +
+                        $"{item.transform.position.z.ToString(CultureInfo.InvariantCulture)}," +
+                        $"{item.transform.eulerAngles.y.ToString(CultureInfo.InvariantCulture)}|";
+        }
+        PlayerPrefs.SetString("SavedItems", itemSave);
+
+        // 4. EÞYA ÝNCELEME (INSPECTOR) VERÝLERÝNÝ KAYDET
         if (ObjectInspector.Instance != null)
         {
             PlayerPrefs.SetInt("SavedBatteries", ObjectInspector.Instance.batteryCount);
             PlayerPrefs.SetFloat("SavedCharge", ObjectInspector.Instance.currentCharge);
         }
 
-        // 1. OYUNCUNUN KONUMUNU KAYDET
+        // 5. OYUNCUNUN KONUMUNU KAYDET
         if (PlayerStats.Instance != null)
         {
             PlayerPrefs.SetFloat("PlayerX", PlayerStats.Instance.transform.position.x);
@@ -470,15 +541,13 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.SetFloat("PlayerZ", PlayerStats.Instance.transform.position.z);
         }
 
-        // 2. EL ARABASININ KONUMUNU KAYDET
+        // 6. EL ARABASININ KONUMUNU KAYDET
         WheelbarrowController wheelbarrow = FindFirstObjectByType<WheelbarrowController>();
         if (wheelbarrow != null)
         {
             PlayerPrefs.SetFloat("CarX", wheelbarrow.transform.position.x);
             PlayerPrefs.SetFloat("CarY", wheelbarrow.transform.position.y);
             PlayerPrefs.SetFloat("CarZ", wheelbarrow.transform.position.z);
-
-            // Arabanýn dönüþ açýsýný (Rotation) da kaydedelim ki devrilmiþse devrilmiþ kalsýn
             PlayerPrefs.SetFloat("CarRotY", wheelbarrow.transform.eulerAngles.y);
         }
 
@@ -488,19 +557,21 @@ public class GameManager : MonoBehaviour
 
     public void LoadGameData()
     {
-        taxPaidSoFar = PlayerPrefs.GetInt("SavedTax", 100);
+        // 1. TEMEL DEÐERLERÝ YÜKLE
+        taxPaidSoFar = PlayerPrefs.GetInt("SavedTaxPaid", 0);
         currentMoney = PlayerPrefs.GetInt("SavedMoney", 0);
         currentDay = PlayerPrefs.GetInt("SavedDay", 1);
-        foodStock = PlayerPrefs.GetInt("SavedFood", 25);
-        taxAmount = PlayerPrefs.GetInt("SavedTax", 5);
+        int loadedFoodAmount = PlayerPrefs.GetInt("SavedFood", 25); // Eski yemek sayýsýný hafýzaya al
+        taxAmount = PlayerPrefs.GetInt("SavedTaxAmount", 5);
 
+        // 2. EÞYA ÝNCELEME (INSPECTOR) VERÝLERÝNÝ YÜKLE
         if (ObjectInspector.Instance != null)
         {
             ObjectInspector.Instance.batteryCount = PlayerPrefs.GetInt("SavedBatteries", 1);
             ObjectInspector.Instance.currentCharge = PlayerPrefs.GetFloat("SavedCharge", 100f);
         }
 
-        // 1. OYUNCUYU ESKÝ KONUMUNA IÞINLA (Havadan Býrakma Düzeltmesi)
+        // 3. OYUNCUYU IÞINLA (Fizik Düzenlemesiyle)
         if (PlayerStats.Instance != null && PlayerPrefs.HasKey("PlayerX"))
         {
             float x = PlayerPrefs.GetFloat("PlayerX");
@@ -508,15 +579,19 @@ public class GameManager : MonoBehaviour
             float z = PlayerPrefs.GetFloat("PlayerZ");
 
             CharacterController cc = PlayerStats.Instance.GetComponent<CharacterController>();
+            PlayerMovement pm = PlayerStats.Instance.GetComponent<PlayerMovement>();
+
+            if (pm != null) pm.enabled = false;
             if (cc != null) cc.enabled = false;
 
-            // DÝKKAT: y + 1.5f yaparak karakteri zeminin 1.5 metre yukarýsýndan býrakýyoruz!
             PlayerStats.Instance.transform.position = new Vector3(x, y + 1.5f, z);
+            Physics.SyncTransforms();
 
             if (cc != null) cc.enabled = true;
+            if (pm != null) pm.enabled = true;
         }
 
-        // 2. EL ARABASINI ESKÝ KONUMUNA IÞINLA (Havadan Býrakma Düzeltmesi)
+        // 4. EL ARABASINI IÞINLA
         WheelbarrowController wheelbarrow = FindFirstObjectByType<WheelbarrowController>();
         if (wheelbarrow != null && PlayerPrefs.HasKey("CarX"))
         {
@@ -529,13 +604,83 @@ public class GameManager : MonoBehaviour
             if (rb != null)
             {
                 rb.isKinematic = true;
-                // Arabayý da zemine gömülmesin diye 0.5 metre havadan býrakýyoruz
                 wheelbarrow.transform.position = new Vector3(cx, cy + 0.5f, cz);
                 wheelbarrow.transform.rotation = Quaternion.Euler(0, crotY, 0);
                 rb.isKinematic = false;
             }
         }
 
-        Debug.Log("<color=cyan>Kayýtlý oyun (Oyuncu ve Araba Konumu dahil) baþarýyla yüklendi!</color>");
+        // 5. ESKÝ DÜNYAYI TEMÝZLE
+        foreach (var res in residents) { if (res != null) Destroy(res.gameObject); }
+        residents.Clear();
+
+        PhysicalItem[] oldItems = FindObjectsByType<PhysicalItem>(FindObjectsSortMode.None);
+        foreach (var oldItem in oldItems) { Destroy(oldItem.gameObject); }
+
+        // 6. ZÝYARETÇÝLERÝ YÜKLE
+        string savedRes = PlayerPrefs.GetString("SavedResidents", "");
+        if (!string.IsNullOrEmpty(savedRes))
+        {
+            string[] resArray = savedRes.Split('|');
+            foreach (string r in resArray)
+            {
+                if (string.IsNullOrEmpty(r)) continue;
+                string[] data = r.Split(',');
+
+                NpcProfile profile = allCharacters.Find(x => x.name == data[0]);
+                if (profile != null && visitorPrefab != null)
+                {
+                    GameObject newVisObj = Instantiate(visitorPrefab, transform.position, Quaternion.identity);
+                    VisitorController vc = newVisObj.GetComponent<VisitorController>();
+                    vc.assignedProfile = profile;
+                    vc.isAnomalyActive = bool.Parse(data[1]);
+                    vc.isResident = true;
+
+                    if (SeatManager.Instance != null)
+                    {
+                        Seat freeSeat = SeatManager.Instance.GetFreeSeat();
+                        if (freeSeat != null)
+                        {
+                            freeSeat.Occupy();
+                            newVisObj.transform.position = freeSeat.sitPoint.position;
+                            newVisObj.transform.rotation = freeSeat.sitPoint.rotation;
+                        }
+                    }
+                    residents.Add(vc);
+                }
+            }
+        }
+
+        // 7. EÞYALARI YÜKLE (Yemekler hariç, koordinat bazlý)
+        string savedItems = PlayerPrefs.GetString("SavedItems", "");
+        if (!string.IsNullOrEmpty(savedItems))
+        {
+            string[] itemArray = savedItems.Split('|');
+            foreach (string iData in itemArray)
+            {
+                if (string.IsNullOrEmpty(iData)) continue;
+                string[] data = iData.Split(',');
+
+                GameObject prefabToSpawn = allItemPrefabs.Find(x => x.name == data[0]);
+                if (prefabToSpawn != null)
+                {
+                    Vector3 pos = new Vector3(
+                        float.Parse(data[1], CultureInfo.InvariantCulture),
+                        float.Parse(data[2], CultureInfo.InvariantCulture),
+                        float.Parse(data[3], CultureInfo.InvariantCulture));
+
+                    Quaternion rot = Quaternion.Euler(0, float.Parse(data[4], CultureInfo.InvariantCulture), 0);
+                    Instantiate(prefabToSpawn, pos, rot);
+                }
+            }
+        }
+
+        // 8. EN SON: YEMEKLERÝ RAFA BAÞTAN DÝZ (Hafýzadaki miktar kadar)
+        if (PantryShelf.Instance != null)
+        {
+            PantryShelf.Instance.SpawnInitialFood(loadedFoodAmount);
+        }
+
+        Debug.Log("<color=cyan>Kayýtlý oyun baþarýyla yüklendi! Yemekler rafa pýt pýt diziliyor.</color>");
     }
 }
