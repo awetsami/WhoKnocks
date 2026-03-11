@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   itemName: "Yeni E\u015Fya"
   description: Mermi
-  category: 0
+  category: 4
   taxValue: 10
   icon: {fileID: 0}
   dropPrefab: {fileID: 7941030372536435708, guid: efb26a0ab08f0774fa5b2ef9cc26f76e, type: 3}

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: "\u0130\xE7eriGirer"
   m_EditorClassIdentifier: 
   npcText: "\xC7ekil kenara"
-  textA: 
+  textA: ...
   nextNodeA: {fileID: 0}
   textB: 
   nextNodeB: {fileID: 0}
