@@ -120,7 +120,62 @@ public class GameManager : MonoBehaviour
         UpdateStatsUI();
         StartCoroutine(DayStartSequence(true));
     }
+    public void ThiefStealsSmart()
+    {
+        // 1. Sahnede duran ve birinin elinde olmayan tüm fiziksel eþyalarý bul
+        PhysicalItem[] allItems = FindObjectsByType<PhysicalItem>(FindObjectsSortMode.None);
+        if (allItems.Length == 0) return;
 
+        // 2. Eþyalarý kategorilerine göre ayýrmak için boþ listeler oluþtur
+        List<GameObject> valuableItems = new List<GameObject>();
+        List<GameObject> survivalItems = new List<GameObject>(); // Medikal, Pil, Alet
+        List<GameObject> foodItems = new List<GameObject>();
+
+        foreach (var pItem in allItems)
+        {
+            LootableItem loot = pItem.GetComponent<LootableItem>();
+
+            // Güvenlik Kontrolü: Eþya sahipsiz mi ve verisi var mý?
+            if (loot == null || loot.itemData == null || loot.isHeld) continue;
+
+            // Eþyayý ItemData'daki kategorisine göre listeye ekle
+            switch (loot.itemData.category)
+            {
+                case ItemCategory.Valuable:
+                    valuableItems.Add(pItem.gameObject);
+                    break;
+                case ItemCategory.Medical:
+                case ItemCategory.Battery:
+                case ItemCategory.Tool:
+                    survivalItems.Add(pItem.gameObject);
+                    break;
+                case ItemCategory.Food:
+                    foodItems.Add(pItem.gameObject);
+                    break;
+            }
+        }
+
+        // 3. SEÇÝM AÞAMASI (Öncelik Sýrasý)
+        GameObject targetToSteal = null;
+
+        // Önce deðerli eþya var mý? (Saat, altýn vb.)
+        if (valuableItems.Count > 0)
+            targetToSteal = valuableItems[Random.Range(0, valuableItems.Count)];
+        // Yoksa hayatta kalma eþyasý var mý? (Pil, bandaj vb.)
+        else if (survivalItems.Count > 0)
+            targetToSteal = survivalItems[Random.Range(0, survivalItems.Count)];
+        // O da yoksa mecbur yemeði çal.
+        else if (foodItems.Count > 0)
+            targetToSteal = foodItems[Random.Range(0, foodItems.Count)];
+
+        // 4. YOK ETME VE RAPOR
+        if (targetToSteal != null)
+        {
+            string stolenItemName = targetToSteal.GetComponent<LootableItem>().itemData.itemName;
+            Destroy(targetToSteal);
+            Debug.Log($"<color=red>[HIRSIZLIK]</color> Hýrsýz hedefini seçti ve þunu çaldý: {stolenItemName}");
+        }
+    }
     // --- VERGÝ VE CEZA SÝSTEMÝ ---
     public void PayTax()
     {
@@ -134,6 +189,36 @@ public class GameManager : MonoBehaviour
         UpdateStatsUI();
     }
 
+    public void ThiefStealsPhysicalItem()
+    {
+        // Sahnede oyuncunun etkileþime geçebileceði tüm eþyalarý bul
+        // PhysicalItem senin eþya scriptin olduðu için onu tarýyoruz
+        PhysicalItem[] allItems = FindObjectsByType<PhysicalItem>(FindObjectsSortMode.None);
+
+        List<PhysicalItem> stealableItems = new List<PhysicalItem>();
+
+        foreach (var item in allItems)
+        {
+            // KURAL 1: Rafýn (PantryShelf) içinde olmayanlarý çal (Masanýn üstündekiler vs.)
+            // KURAL 2: Önemli bir objeyi (El arabasý vb.) çalmasýn diye tip kontrolü yapabilirsin
+            LootableItem loot = item.GetComponent<LootableItem>();
+            if (loot != null)
+            {
+                stealableItems.Add(item);
+            }
+        }
+
+        if (stealableItems.Count > 0)
+        {
+            // Rastgele birini seç ve yok et
+            int randomIndex = Random.Range(0, stealableItems.Count);
+            string stolenName = stealableItems[randomIndex].gameObject.name.Replace("(Clone)", "");
+
+            Destroy(stealableItems[randomIndex].gameObject);
+
+            Debug.Log($"<color=red>HIRSIZLIK: Gece gizlice bir {stolenName} çalýndý!</color>");
+        }
+    }
     public void PunishForTax()
     {
         if (residents.Count == 0) { EndGame(false); return; } // Kimse yoksa vali seni öldürür
@@ -248,6 +333,7 @@ public class GameManager : MonoBehaviour
         {
             if (PlayerStats.Instance != null) PlayerStats.Instance.OnNightPass(false);
 
+            // --- LOOT SÝSTEMÝ (Mühendis Bonusu Dahil) ---
             int lootChance = 10;
             foreach (var r in residents)
             {
@@ -263,27 +349,31 @@ public class GameManager : MonoBehaviour
             }
             for (int i = 0; i < batteriesFound; i++) Instantiate(batteryPrefab, lootTablePos.position + Random.insideUnitSphere * 0.1f, lootTablePos.rotation);
 
+            // --- TÜKETÝM VE DEVLET DESTEÐÝ HESAPLAMA ---
             consumedLastNight = CalculateConsumption();
+            int dailyGrant = CalculateSocialGrant(); // Yaþa göre hesaplar
+            currentMoney += dailyGrant; // Parayý cüzdana ekler
 
-            // --- YENÝ AÇLIKTAN ÖLÜM MANTIÐI ---
+            // --- YEMEK TÜKETÝMÝ VEYA OYUN SONU ---
             if (foodStock >= consumedLastNight)
             {
-                // Kasada yeterli yemek var, afiyet olsun!
                 foodStock -= consumedLastNight;
                 if (PantryShelf.Instance != null) PantryShelf.Instance.ConsumePhysicalFood(consumedLastNight);
             }
             else
             {
-                // GECE MASAYA OTURDULAR AMA YEMEK YOK! OYUN BÝTTÝ!
                 EndGame(false);
-                yield break; // Coroutine'i (Yeni günü) anýnda durdur
+                yield break;
             }
 
-            // YENÝ: HandleNightEvents'a mühendis bilgisini gönderiyoruz
+            // --- GECE OLAYLARI (Hýrsýzlýk, Kavga, Arýza) ---
             string nightEvent = HandleNightEvents(hasEngineer);
 
-            report = (consumedLastNight > 0 ? $"<color=red>-{consumedLastNight} Yemek</color>\n" : "Yemek tüketilmedi.\n") +
-                     (batteriesFound > 0 ? $"<color=green>+{batteriesFound} Pil {(hasEngineer ? "(Mühendis)" : "")}</color>\n" : "Pil bulunamadý.\n") + nightEvent;
+            // --- TÜM VERÝLERÝ RAPORA DÖKME ---
+            report = (consumedLastNight > 0 ? $"<color=red>-{consumedLastNight} Yemek Tüketildi.</color>\n" : "Yemek tüketilmedi.\n") +
+                     (dailyGrant > 0 ? $"<color=blue>DEVLET DESTEÐÝ: +{dailyGrant} Kredi yatýrýldý.</color>\n" : "") +
+                     (batteriesFound > 0 ? $"<color=green>+{batteriesFound} Pil Bulundu {(hasEngineer ? "(Mühendis Etkisi)" : "")}</color>\n" : "") +
+                     nightEvent;
         }
 
         if (transitionText) { transitionText.text = "GÜN " + currentDay; transitionText.gameObject.SetActive(true); yield return new WaitForSeconds(2f); transitionText.gameObject.SetActive(false); }
@@ -300,42 +390,72 @@ public class GameManager : MonoBehaviour
     }
     string HandleNightEvents(bool hasEngineer)
     {
-        if (Random.Range(0, 100) > 30) return "";
-        List<string> evts = new List<string>();
-        if (residents.Count >= 3) evts.Add("KAVGA");
-        evts.Add("ARIZA");
-        if (residents.Exists(x => x.isAnomalyActive)) evts.Add("SES");
+        // Meslek taramasý yapalým
+        bool hasDoctor = residents.Exists(x => x.assignedProfile != null && x.assignedProfile.occupationRole == OccupationType.Doctor);
+         bool hasPolice = residents.Exists(x => x.assignedProfile != null && x.assignedProfile.occupationRole == OccupationType.Police);
+        bool hasThief = residents.Exists(x => x.assignedProfile != null && x.assignedProfile.occupationRole == OccupationType.Thief);
+        bool hasAggressive = residents.Exists(x => x.assignedProfile != null && x.assignedProfile.isAggressive);
 
-        string sel = evts[Random.Range(0, evts.Count)];
-        switch (sel)
+        string report = "";
+
+
+        if (hasThief)
         {
-            case "KAVGA":
-                foodStock--;
-                return "<color=red>UYARI: Gece kavga çýktý (-1 Yemek).</color>\n";
+            if (hasPolice)
+            {
+                // Polis varsa hýrsýzlýk yapýlamaz
+                report += "<color=blue>GÜVENLÝK: Polis gece bir hýrsýzý etkisiz hale getirdi.</color>\n";
+            }
+            else
+            {
+                // Polis yoksa önce fiziksel eþya çalmayý dene
+                PhysicalItem[] items = FindObjectsByType<PhysicalItem>(FindObjectsSortMode.None);
 
-            case "ARIZA":
-                if (hasEngineer)
+                if (items.Length > 0)
                 {
-                    // Ýçeride mühendis varsa arýza anýnda çözülür
-                    if (VentilationSystem.Instance != null) VentilationSystem.Instance.isBroken = false;
-                    return "<color=green>BÝLGÝ: Havalandýrma arýzasý mühendis tarafýndan giderildi.</color>\n";
+                    ThiefStealsSmart(); // Az önce yazdýðýmýz zeki fonksiyon çalýþýr
+                    report += "<color=red>HIRSIZLIK: Gece eþyalarýndan biri sýðýnaktan çalýnmýþ!</color>\n";
                 }
-                else
+                else if (currentMoney >= 20)
                 {
-                    // Mühendis yoksa GERÇEKTEN þalteri bozuyoruz!
-                    if (VentilationSystem.Instance != null)
-                    {
-                        VentilationSystem.Instance.isBroken = true;
-                        VentilationSystem.Instance.isFanRunning = false;
-                    }
-                    return "<color=orange>UYARI: Havalandýrma bozuldu, mühendise ihtiyaç var!</color>\n";
+                    // Çalacak eþya yoksa kasaya yönelir
+                    currentMoney -= 20;
+                    report += "<color=red>HIRSIZLIK: Eþya bulamayan hýrsýz kasaný boþaltmýþ (-20 Kredi)!</color>\n";
                 }
-
-            case "SES":
-                return "<color=purple>KORKU: Duvarlardan týrmalama sesleri geldi...</color>\n";
-
-            default: return "";
+            }
         }
+
+        // --- 2. KAVGA VE DOKTOR ---
+        float brawlChance = hasAggressive ? 45f : 10f;
+        if (hasDoctor) brawlChance /= 3f; // Doktor kavgayý yatýþtýrýr
+
+        if (Random.Range(0, 100) < brawlChance)
+        {
+            report += "<color=orange>OLAY: Gece içeride kavga çýktý!</color>\n";
+
+            // Eðer doktor yoksa kavgada biri yaralanýp sýðýnaðý terk edebilir (Ölebilir)
+            if (!hasDoctor && residents.Count > 0)
+            {
+                int randomIndex = Random.Range(0, residents.Count);
+                VisitorController victim = residents[randomIndex];
+                report += $"<color=red>KAYIP: {victim.assignedProfile.adSoyad} kavgada aðýr yaralandýðý için sýðýnaðý terk etti.</color>\n";
+                residents.RemoveAt(randomIndex);
+                Destroy(victim.gameObject);
+            }
+        }
+
+        // --- 3. MÜHENDÝS VE ARIZA ---
+        if (Random.Range(0, 100) < 25)
+        {
+            if (hasEngineer) report += "<color=green>TAMÝR: Mühendis havalandýrma arýzasýný gece halletti.</color>\n";
+            else
+            {
+                if (VentilationSystem.Instance != null) VentilationSystem.Instance.isBroken = true;
+                report += "<color=red>ARIZA: Havalandýrma bozuldu!</color>\n";
+            }
+        }
+
+        return report;
     }
 
     public void OnDoorOpened()
@@ -375,7 +495,41 @@ public class GameManager : MonoBehaviour
     }
 
     // --- YARDIMCI FONKSÝYONLAR ---
-    int CalculateConsumption() { residents.RemoveAll(r => r == null); int t = 0; foreach (var r in residents) { int c = 1; if (r.assignedProfile != null && r.assignedProfile.meslek.ToLower().Contains("doktor")) c = 0; switch (r.currentType) { case AnomalyType.Type3: t += 5; break; case AnomalyType.Type2: t += 3; break; default: t += c; break; } } return t; }
+    int CalculateSocialGrant()
+    {
+        int totalGrant = 0;
+        foreach (var res in residents)
+        {
+            // Sadece iþsiz olanlarý ve verisi atanmýþ olanlarý kontrol et
+            if (res != null && res.assignedProfile != null && res.assignedProfile.occupationRole == OccupationType.Unemployed)
+            {
+                int age = res.assignedProfile.yas;
+
+                if (age < 20) totalGrant += 3;       // Genç iþsiz
+                else if (age < 40) totalGrant += 5;  // Orta yaþlý iþsiz
+                else totalGrant += 7;                // Yaþlý iþsiz (Maksimum teþvik)
+            }
+        }
+        return totalGrant;
+    }
+    int CalculateConsumption()
+    {
+        residents.RemoveAll(r => r == null);
+        int totalConsumption = 0;
+
+        foreach (var r in residents)
+        {
+            // Herkes ama herkes (Doktor dahil) en az 1 yemek yer.
+            int personNeeds = 1;
+
+            if (r.currentType == AnomalyType.Type3) totalConsumption += 5;
+            else if (r.currentType == AnomalyType.Type2) totalConsumption += 3;
+            else totalConsumption += personNeeds;
+        }
+
+        Debug.Log($"<color=cyan>[GECE HESABI]</color> Kiþi: {residents.Count} | Tüketim: {totalConsumption}");
+        return totalConsumption;
+    }
     void SimulateWar() { dailyHeadlines.Clear(); var shuffled = cities.OrderBy(a => System.Guid.NewGuid()).ToList(); int d = 1; foreach (var c in shuffled) { d += Random.Range(1, 4); c.gasDay = d; string m = $"SON DAKÝKA: {c.cityName} düþtü!"; if (dailyHeadlines.ContainsKey(d)) dailyHeadlines[d] += "\n" + m; else dailyHeadlines.Add(d, m); } }
     CityData GetSafeCity() { return cities.FindAll(c => !c.IsInfected(currentDay)).OrderBy(x => Random.value).FirstOrDefault() ?? cities[0]; }
     CityData GetFallenCity() { return cities.FindAll(c => c.IsInfected(currentDay)).OrderBy(x => Random.value).FirstOrDefault(); }

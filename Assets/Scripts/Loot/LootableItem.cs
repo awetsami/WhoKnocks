@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class LootableItem : MonoBehaviour
 {
+    [Header("Eþya Verisi")]
+    public ItemData itemData;
     public enum ItemType { Food, Battery, Ammo }
     public ItemType itemType = ItemType.Food;
 

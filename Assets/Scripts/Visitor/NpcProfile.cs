@@ -1,9 +1,13 @@
 using UnityEngine;
 using System.Collections.Generic;
+public enum OccupationType { None, Engineer, Doctor, Chef, Thief, Police, Unemployed }
 
 [CreateAssetMenu(fileName = "YeniKarakter", menuName = "Sýðýnak/NPC Profili")]
 public class NpcProfile : ScriptableObject
 {
+    [Header("Mekanik Rol")]
+    public OccupationType occupationRole;
+
     [Header("Sosyal Ýliþkiler")]
     public string familyID; // Ayný ID'ye sahip olanlar aile sayýlýr (Örn: "Yilmaz_Ailesi")
     public string relationType; // "Baba", "Kýz", "Eþ" gibi (Diyalogda kullanmak için)

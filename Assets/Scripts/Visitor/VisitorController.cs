@@ -5,6 +5,9 @@ using System.Collections;
 
 public class VisitorController : MonoBehaviour
 {
+    [Header("Diyalog Sesi")]
+    public AudioSource voiceAudioSource; // NPC'nin aðzýndan çýkacak ses
+
     // --- KEMAL (VERGÝ) ÖZEL DEÐÝÞKENLERÝ ---
     [Header("Kemal - Vergi ve Saldýrý")]
     public int requiredTax = 100; // Ýstenen vergi
@@ -150,7 +153,20 @@ public class VisitorController : MonoBehaviour
 
     public void StartConversation()
     {
-        if (assignedProfile == null) return;
+        // 1. GÜVENLÝK KONTROLÜ: Profil var mý?
+        if (assignedProfile == null)
+        {
+            Debug.LogWarning("<color=yellow>Bu NPC'nin bir profili (NpcProfile) yok!</color>");
+            return;
+        }
+
+        // 2. GÜVENLÝK KONTROLÜ: DialogueManager sahnede var mý?
+        if (DialogueManager.Instance == null)
+        {
+            Debug.LogError("<color=red>Sahnede DialogueManager bulunamadý! Lütfen Hierarchy'de bir objede olduðundan emin ol.</color>");
+            return;
+        }
+
         if (savedCurrentNode != null)
         {
             DialogueManager.Instance.StartDialogue(null, this, savedCurrentNode);
@@ -158,8 +174,16 @@ public class VisitorController : MonoBehaviour
         }
 
         List<DialogueTopic> topics = isAtDoor ? assignedProfile.normalDoorTopics : assignedProfile.normalSeatTopics;
-        if (topics != null && topics.Count > 0)
+
+        // 3. GÜVENLÝK KONTROLÜ: Konu listesi boþ mu veya içi null mu?
+        if (topics != null && topics.Count > 0 && topics[0] != null)
+        {
             DialogueManager.Instance.StartDialogue(null, this, topics[0].startNode);
+        }
+        else
+        {
+            Debug.LogError($"<color=red>{assignedProfile.adSoyad} isimli NPC'nin konuþacak bir konusu (Topic) yok! Inspector'dan kontrol et.</color>");
+        }
     }
 
     // --- HAREKET VE YOK OLMA (Aynen Korundu) ---

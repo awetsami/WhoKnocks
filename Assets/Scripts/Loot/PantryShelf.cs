@@ -8,6 +8,8 @@ public class PantryShelf : MonoBehaviour
     [Header("Grid Ayarları")]
     public List<Transform> allSlots = new List<Transform>(); // Editor'den sürükle
     private Dictionary<Transform, GameObject> slotData = new Dictionary<Transform, GameObject>();
+    
+
 
     void Awake()
     {
@@ -18,12 +20,33 @@ public class PantryShelf : MonoBehaviour
     // YENİ OYUN: Yemekleri slotlara pıt pıt yerleştirir
     public void SpawnInitialFood(int count)
     {
+        GameObject foodPrefab = null;
+
+        foreach (GameObject prefab in GameManager.Instance.allItemPrefabs)
+        {
+            LootableItem lootScript = prefab.GetComponent<LootableItem>();
+
+            // Hem scriptin olduğundan hem de veri atanmış olduğundan emin oluyoruz
+            if (lootScript != null && lootScript.itemData != null)
+            {
+                if (lootScript.itemData.category == ItemCategory.Food)
+                {
+                    foodPrefab = prefab;
+                    break;
+                }
+            }
+        }
+
+        if (foodPrefab == null)
+        {
+            Debug.LogError("HATA: allItemPrefabs listesinde 'Category: Food' olan bir prefab bulunamadı!");
+            return;
+        }
+
         for (int i = 0; i < count; i++)
         {
             if (i >= allSlots.Count) break;
-
-            GameObject can = Instantiate(GameManager.Instance.batteryPrefab, allSlots[i].position, allSlots[i].rotation);
-            // Not: Kendi yemek prefabını kullan
+            GameObject can = Instantiate(foodPrefab, allSlots[i].position, allSlots[i].rotation);
             SnapToSlot(can, allSlots[i]);
         }
         UpdateGlobalStock();

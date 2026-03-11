@@ -164,12 +164,16 @@ public class PlayerStats : MonoBehaviour
     // YENİ: Oyuncu elindeki FİZİKSEL YEMEĞİ yediğinde dışarıdan çağırılacak fonksiyon
     public void EatPhysicalFood(float restoreAmount)
     {
-        // Açlığı artır, ama 100'ü geçmesin
-        hunger = Mathf.Min(100f, hunger + restoreAmount);
+        // Sığınakta Aşçı var mı kontrol et
+        bool hasChef = GameManager.Instance.residents.Exists(x => x.assignedProfile != null && x.assignedProfile.occupationRole == OccupationType.Chef);
 
-        // Opsiyonel: Yemek yendiğinde biraz da sağlık verebilir (örn: 5 can)
+        // Eğer aşçı varsa yemeğin etkisi 2 katına çıkar!
+        float finalRestore = hasChef ? restoreAmount * 2f : restoreAmount;
+
+        hunger = Mathf.Min(100f, hunger + finalRestore);
         health = Mathf.Min(100f, health + 5f);
 
-        Debug.Log($"<color=green>Oyuncu kendi yemeğini yedi! Yeni Açlık: {hunger}</color>");
+        string chefBonus = hasChef ? " (Aşçı Bonusu!)" : "";
+        Debug.Log($"<color=green>Yemek yendi: +{finalRestore}{chefBonus}</color>");
     }
 }

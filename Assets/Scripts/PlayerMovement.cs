@@ -3,7 +3,7 @@ using UnityEngine;
 public class PlayerMovement : MonoBehaviour
 {
     public CharacterController controller;
-    public float baseSpeed = 5f; // Deðiþken adýný "baseSpeed" yaptýk ki ana hýzýmýz hep sabit kalsýn
+    public float baseSpeed = 5f;
     public float gravity = -9.81f;
     public float jumpHeight = 1f;
 
@@ -18,23 +18,34 @@ public class PlayerMovement : MonoBehaviour
     public float mouseSensitivity = 100f;
     float xRotation = 0f;
 
-    private InteractionSystem interactionSystem; // Etkileþim sistemini baðlayacaðýmýz referans
+    private InteractionSystem interactionSystem;
 
     void Start()
     {
         Cursor.lockState = CursorLockMode.Locked;
         Application.targetFrameRate = 144;
 
-        // Karakterin üzerindeki InteractionSystem'i otomatik olarak bulur
         interactionSystem = GetComponent<InteractionSystem>();
     }
 
     void Update()
     {
-        // --- KAMERA BAKIÞI ---
+        // 1. ÖNCE OYUNCU GÝRDÝLERÝNÝ OKU
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
+        float x = Input.GetAxis("Horizontal");
+        float z = Input.GetAxis("Vertical");
 
+        // 2. DÝYALOG KONTROLÜ: EÐER DÝYALOG AÇIKSA GÝRDÝLERÝ SIFIRLA!
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+        {
+            mouseX = 0f;
+            mouseY = 0f;
+            x = 0f;
+            z = 0f;
+        }
+
+        // --- KAMERA BAKIÞI ---
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
@@ -49,23 +60,19 @@ public class PlayerMovement : MonoBehaviour
             velocity.y = -2f;
         }
 
-        float x = Input.GetAxis("Horizontal");
-        float z = Input.GetAxis("Vertical");
-
         Vector3 move = transform.right * x + transform.forward * z;
 
-        // YENÝ: Etkileþim sisteminden araba hýz çarpanýný alýyoruz
         float currentMultiplier = 1f;
         if (interactionSystem != null)
         {
             currentMultiplier = interactionSystem.GetPlayerSpeedMultiplier();
         }
 
-        // Ana hýzý (baseSpeed), arabanýn aðýrlýk çarpanýyla çarpýp uyguluyoruz
         float currentSpeed = baseSpeed * currentMultiplier;
         controller.Move(move * currentSpeed * Time.deltaTime);
 
         // --- YERÇEKÝMÝ ---
+        // Girdiler 0 olsa bile bu kýsým çalýþmaya devam edecek, böylece aþaðý düþmeyeceksin.
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }

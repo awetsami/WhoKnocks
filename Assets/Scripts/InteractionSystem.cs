@@ -33,8 +33,13 @@ public class InteractionSystem : MonoBehaviour
 
     void Update()
     {
+        if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
+        {
+            return;
+        }
         GameObject currentTarget = GetBestTarget();
         HandleUIBuffer(currentTarget);
+       
 
         // --- ETKİLEŞİM [E TUŞU] ---
         if (Input.GetKeyDown(KeyCode.E))

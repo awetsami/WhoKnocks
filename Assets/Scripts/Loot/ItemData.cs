@@ -1,12 +1,23 @@
 using UnityEngine;
 
-public enum ItemCategory { Survival, Valuable, Story }
-
+public enum ItemCategory
+{
+    Food,        // Konserve, su vb. (Rafa dizilecek)
+    Battery,     // Fener ve enerji için (Rafa dizilebilir veya masada durur)
+    Medical,     // İlk yardım kiti, bandaj, hap
+    Valuable,    // Mücevher, saat, para (Hırsızın öncelikli hedefi)
+    Scrap,       // Hurda, değersiz eşya (Tamirat veya ticaret için)
+    Tool,        // Çekiç, anahtar (Kullan-at veya kalıcı aletler)
+    Story        // Görev eşyaları, belgeler
+}
 [CreateAssetMenu(fileName = "New Item", menuName = "Oyun/Yeni Eşya Yarat")]
 public class ItemData : ScriptableObject
 {
+    
+
     [Header("Eşya Bilgileri")]
     public string itemName = "Yeni Eşya";
+
     [TextArea] public string description;
     public ItemCategory category;
 
