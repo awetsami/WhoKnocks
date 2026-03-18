@@ -77,9 +77,13 @@ public class PantryShelf : MonoBehaviour
     {
         slotData[slot] = can;
 
-        // Fiziği tamamen kapat (En optimize yol)
+        // Fiziği tamamen kapat (Düşmemesi için)
         Rigidbody rb = can.GetComponent<Rigidbody>();
         if (rb) { rb.isKinematic = true; rb.linearVelocity = Vector3.zero; }
+
+        // ÇÖZÜM: Oyuncunun tekrar eline alabilmesi için Collider'ı zorla geri açıyoruz!
+        Collider[] cols = can.GetComponentsInChildren<Collider>();
+        foreach (Collider c in cols) c.enabled = true;
 
         can.transform.position = slot.position;
         can.transform.rotation = slot.rotation;

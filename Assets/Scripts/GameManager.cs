@@ -80,6 +80,18 @@ public class GameManager : MonoBehaviour
     private GameObject currentVisitor;
     private float knockTimer;
 
+    [Header("Gece/Gündüz Iþýk Ayarlarý")]
+    public Light sunLight; // Unity'den dýþarýdaki Directional Light'ý buraya sürükle
+    public float nightLightIntensity = 0.05f;
+    public float dayLightIntensity = 1f;
+
+    // Eðer sýðýnak içinde gece olunca kýsýlan/kapanan bir lamba varsa onu da buraya ekleyebilirsin:
+    // public Light bunkerMainLight;
+
+    [Header("Demo Ayarlarý")]
+    public int demoMaxDays = 3; // Demo kaç gün sürecek?
+    public GameObject demoEndPanel; // Wishlist panelimiz
+
     void Awake() { if (Instance == null) Instance = this; else Destroy(gameObject); }
     public void TriggerAnomalyInvasion()
     {
@@ -316,6 +328,8 @@ public class GameManager : MonoBehaviour
     }
     // --- GÜN DÖNGÜSÜ ---
     // --- GÜN DÖNGÜSÜ ---
+    // Bu fonksiyonu DayStartSequence içinde currentDay > demoMaxDays olduðunda çaðýrabilirsin
+
     IEnumerator DayStartSequence(bool isFirstDay)
     {
         kemalSpawnedToday = false;
@@ -331,6 +345,15 @@ public class GameManager : MonoBehaviour
 
         if (!isFirstDay)
         {
+            // --- DEMO BÝTÝÞ KONTROLÜ ---
+            // Eðer belirlenen gün sýnýrýný geçtiysek, yeni günü baþlatma ve demoyu bitir
+            if (currentDay > demoMaxDays)
+            {
+                ShowDemoEndScreen();
+                yield break; // Coroutine'i tamamen durdurur, aþaðýdaki kodlar çalýþmaz.
+            }
+            // ---------------------------
+
             if (PlayerStats.Instance != null) PlayerStats.Instance.OnNightPass(false);
 
             // --- LOOT SÝSTEMÝ (Mühendis Bonusu Dahil) ---
@@ -353,6 +376,7 @@ public class GameManager : MonoBehaviour
             consumedLastNight = CalculateConsumption();
             int dailyGrant = CalculateSocialGrant(); // Yaþa göre hesaplar
             currentMoney += dailyGrant; // Parayý cüzdana ekler
+
 
             // --- YEMEK TÜKETÝMÝ VEYA OYUN SONU ---
             if (foodStock >= consumedLastNight)
@@ -476,6 +500,14 @@ public class GameManager : MonoBehaviour
         dayText.text = "GECE " + currentDay;
         UpdateSecurityWall();
 
+        // --- YENÝ: IÞIKLARI VE ATMOSFERÝ DEÐÝÞTÝR ---
+        if (sunLight != null)
+        {
+            sunLight.intensity = nightLightIntensity;
+            sunLight.color = new Color(0.2f, 0.3f, 0.5f); // Koyu, soðuk ölü bir mavi
+        }
+        // ---------------------------------------------
+
         // Kutularý doður
         LootBoxSpawner spawner = Object.FindAnyObjectByType<LootBoxSpawner>();
         if (spawner != null) spawner.SpawnNightLootBoxes();
@@ -489,6 +521,7 @@ public class GameManager : MonoBehaviour
         f = 0;
         while (f < 1.5f) { f += Time.deltaTime; transitionPanel.alpha = 1 - (f / 1.5f); yield return null; }
         transitionPanel.gameObject.SetActive(false);
+
         // YENÝ: Gece geçiþi bittiðinde fareyi gizle ve ekrana kilitle!
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -836,5 +869,37 @@ public class GameManager : MonoBehaviour
         }
 
         Debug.Log("<color=cyan>Kayýtlý oyun baþarýyla yüklendi! Yemekler rafa pýt pýt diziliyor.</color>");
+    }
+
+    //----DEMO BÝTÝÞ EKRANI ---
+    public void ShowDemoEndScreen()
+    {
+        // Paneli aktif et
+        if (demoEndPanel != null) demoEndPanel.SetActive(true);
+
+        // Arka plandaki geçiþ veya oyun içi panelleri kapatabilirsin
+        // transitionPanel.gameObject.SetActive(false); // Varsa
+
+        // Oyunu tamamen dondur
+        Time.timeScale = 0f;
+
+        // Oyuncunun menüde týklayabilmesi için fareyi serbest býrak ve görünür yap
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        Debug.Log("Demo bitti, Wishlist ekraný açýldý!");
+    }
+
+    public void OpenSteamPage()
+    {
+        // Buraya kendi Steam sayfanýzýn linkini koyacaksýn. Þimdilik boþ kalabilir veya Steam ana sayfasýný test için yazabilirsin.
+        Application.OpenURL("https://store.steampowered.com/app/SENIN_OYUNUN_ID_SI");
+    }
+
+    public void QuitFromDemo()
+    {
+        // Editörde çalýþmaz, build alýndýðýnda oyunu kapatýr
+        Debug.Log("Demodan Çýkýlýyor...");
+        Application.Quit();
     }
 }
