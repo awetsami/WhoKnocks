@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
   m_Name: Nereli
   m_EditorClassIdentifier: Assembly-CSharp::DialogueNode
-  npcText: 
+  npcText: "Nova Merkez ye\u011Fenim."
   textA: 
   nextNodeA: {fileID: 0}
   textB: 

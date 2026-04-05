@@ -12,17 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccfdcab3142cf3d41995a8aa225e21a3, type: 3}
   m_Name: Ahmet Demir
   m_EditorClassIdentifier: Assembly-CSharp::NpcProfile
-  occupationRole: 0
-  familyID: 
-  relationType: 
-  isAggressive: 0
-  dislikedJobs: []
+  occupationRole: 1
+  familyID: Demir
+  relationType: Baba
+  isAggressive: 1
+  dislikedJobs:
+  - Thief
   familyMemberFoundNode: {fileID: 0}
-  adSoyad: 
-  meslek: 
-  yas: 0
+  adSoyad: Ahmet Demir
+  meslek: "M\xFChendis"
+  yas: 48
   fotograf: {fileID: 0}
-  normalDoorTopics: []
+  normalDoorTopics:
+  - {fileID: 11400000, guid: 98bc4b3a2cecdde4288a81d615b37bfb, type: 2}
   normalSeatTopics: []
   anomalyDoorTopics: []
   anomalySeatTopics: []

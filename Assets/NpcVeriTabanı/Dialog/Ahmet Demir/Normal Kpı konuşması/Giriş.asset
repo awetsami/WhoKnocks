@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DialogueNode
   npcText: "Karde\u015Fim sen bir bak buraya !"
   textA: Buyurun ?
-  nextNodeA: {fileID: 0}
+  nextNodeA: {fileID: 11400000, guid: b4b158776c8c0b84b9f2098ac731d358, type: 2}
   textB: "(Duymazl\u0131ktan gel)"
   nextNodeB: {fileID: 0}
   actionKey: 

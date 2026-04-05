@@ -13,5 +13,5 @@ MonoBehaviour:
   m_Name: "Normal Kap\u0131 Konu\u015Fmas\u0131"
   m_EditorClassIdentifier: Assembly-CSharp::DialogueTopic
   topicID: Ahmet
-  startNode: {fileID: 0}
+  startNode: {fileID: 11400000, guid: 76a779813a03b8e47a8fa43c626601a9, type: 2}
   onlyOnce: 1

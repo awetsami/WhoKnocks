@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
   m_Name: "Sen Ne anlars\u0131n"
   m_EditorClassIdentifier: Assembly-CSharp::DialogueNode
-  npcText: 
-  textA: 
-  nextNodeA: {fileID: 0}
-  textB: 
-  nextNodeB: {fileID: 0}
+  npcText: "Sen kimle konu\u015Ftu\u011Funu bilir misin ye\u011Fen, ben koskoca Ahmet
+    Demir ! Benim onaramad\u0131\u011F\u0131m z\u0131mb\u0131rt\u0131 yoktur bu \xFClkede."
+  textA: "Size g\xFCvenmedim, l\xFCtfen buray\u0131 terk edin."
+  nextNodeA: {fileID: 11400000, guid: 6f5d995eb23a1ae489bf987257dc680b, type: 2}
+  textB: "Teknik i\u015Fleden anl\u0131yor musun ?"
+  nextNodeB: {fileID: 11400000, guid: eb5a009f12c65144e84b27225c64961a, type: 2}
   actionKey: 
   isEndNode: 0

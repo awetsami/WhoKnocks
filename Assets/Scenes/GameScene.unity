@@ -6159,7 +6159,7 @@ GameObject:
   - component: {fileID: 664648834}
   - component: {fileID: 664648833}
   - component: {fileID: 664648832}
-  m_Layer: 10
+  m_Layer: 2
   m_Name: "\xFCst"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6191,10 +6191,10 @@ BoxCollider:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
@@ -12913,7 +12913,7 @@ MonoBehaviour:
   currentPhase: 0
   foodStock: 0
   residents: []
-  kemalProfile: {fileID: 11400000, guid: 464ec4ce6d3fb7d44af4a518787b5a64, type: 2}
+  kemalProfile: {fileID: 0}
   kemalPrefab: {fileID: 7585248799803665080, guid: 778901bdeda7cd94bac93c850e997b93, type: 3}
   taxAmount: 5
   taxInterval: 2
@@ -12930,8 +12930,7 @@ MonoBehaviour:
   dayText: {fileID: 1175625467}
   statsText: {fileID: 737697813}
   allCharacters:
-  - {fileID: 11400000, guid: 650b92d9108855f4e862269ec17e4cb3, type: 2}
-  - {fileID: 11400000, guid: ecbe9e517d025f94fb8287e658d6a023, type: 2}
+  - {fileID: 11400000, guid: 3a56820cf7fbf99409615f28fd9a0b5f, type: 2}
   spawnPoint: {fileID: 902514578}
   hatchLedge: {fileID: 1216031410}
   mainDoor: {fileID: 1328406063}
@@ -18083,7 +18082,7 @@ GameObject:
   - component: {fileID: 1974080317}
   - component: {fileID: 1974080316}
   - component: {fileID: 1974080315}
-  m_Layer: 10
+  m_Layer: 2
   m_Name: alt
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -18115,10 +18114,10 @@ BoxCollider:
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0

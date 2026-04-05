@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
   m_Name: "Size g\xFCvenmedim"
   m_EditorClassIdentifier: Assembly-CSharp::DialogueNode
-  npcText: 
-  textA: 
+  npcText: "Vakti gelince mumla arars\u0131n beni bunu da unutma evlat, sa\u011Fl\u0131cakla."
+  textA: "Tamam g\xFCle g\xFCle."
   nextNodeA: {fileID: 0}
   textB: 
   nextNodeB: {fileID: 0}
-  actionKey: 
-  isEndNode: 0
+  actionKey: LEAVE
+  isEndNode: 1

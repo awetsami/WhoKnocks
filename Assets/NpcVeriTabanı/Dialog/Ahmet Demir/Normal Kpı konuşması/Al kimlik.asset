@@ -12,10 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d638c8725b7ae444c806f02bd50bc0f8, type: 3}
   m_Name: Al kimlik
   m_EditorClassIdentifier: Assembly-CSharp::DialogueNode
-  npcText: 
-  textA: 
-  nextNodeA: {fileID: 0}
+  npcText: "Buyur karde\u015Fim al sana kimlik."
+  textA: Nerelisiniz
+  nextNodeA: {fileID: 11400000, guid: 3e5624913d886654c98c881a5accb436, type: 2}
   textB: 
   nextNodeB: {fileID: 0}
-  actionKey: 
+  actionKey: GIVE_ID
   isEndNode: 0
