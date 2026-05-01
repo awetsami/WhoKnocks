@@ -30,13 +30,11 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
-        // 1. ÖNCE OYUNCU GÝRDÝLERÝNÝ OKU
         float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity * Time.deltaTime;
         float x = Input.GetAxis("Horizontal");
         float z = Input.GetAxis("Vertical");
 
-        // 2. DÝYALOG KONTROLÜ: EÐER DÝYALOG AÇIKSA GÝRDÝLERÝ SIFIRLA!
         if (DialogueManager.Instance != null && DialogueManager.Instance.isDialogueActive)
         {
             mouseX = 0f;
@@ -45,14 +43,12 @@ public class PlayerMovement : MonoBehaviour
             z = 0f;
         }
 
-        // --- KAMERA BAKIÞI ---
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
 
         playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         transform.Rotate(Vector3.up * mouseX);
 
-        // --- HAREKET ---
         isGrounded = controller.isGrounded;
 
         if (isGrounded && velocity.y < 0)
@@ -71,9 +67,29 @@ public class PlayerMovement : MonoBehaviour
         float currentSpeed = baseSpeed * currentMultiplier;
         controller.Move(move * currentSpeed * Time.deltaTime);
 
-        // --- YERÇEKÝMÝ ---
-        // Girdiler 0 olsa bile bu kýsým çalýþmaya devam edecek, böylece aþaðý düþmeyeceksin.
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
+    }
+
+    // --- YENÝ: CS2 TARZI HASAR AFALLAMASI (AIM PUNCH) ---
+    public void ApplyDamageFlinch()
+    {
+        // Ekraný aniden 35 ile 55 derece arasý yukarý fýrlat
+        float verticalKick = Random.Range(35f, 55f);
+
+        // Fareyi rastgele saða veya sola -20 ile +20 derece savur
+        float horizontalKick = Random.Range(-20f, 20f);
+
+        // Yukarý bakmasý için xRotation'dan çýkarýyoruz
+        xRotation -= verticalKick;
+
+        // Boynu kýrýlmasýn diye sýnýrla
+        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+
+        // Deðiþikliði anýnda kameraya uygula (Sarsýntý hissi)
+        playerCamera.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+
+        // Karakterin gövdesini saða sola savur
+        transform.Rotate(Vector3.up * horizontalKick);
     }
 }

@@ -1,14 +1,15 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 public enum AIState { Patrol, Alert, Chase, Search, Stunned }
 
 public class EnemyAI : MonoBehaviour
 {
     [Header("Can ve Hasar")]
-    public float health = 100f; // Düþmanýn caný
-    public float attackDamage = 15f; // Tek vuruþta vereceði hasar
-    public float attackCooldown = 1.5f; // Ýki vuruþ arasýndaki bekleme süresi
+    public float health = 100f;
+    public float attackDamage = 15f;
+    public float attackCooldown = 1.5f;
     private float lastAttackTime = 0f;
 
     private float stunTimer = 0f;
@@ -17,7 +18,7 @@ public class EnemyAI : MonoBehaviour
     public float sightRange = 40f;
     public float fieldOfView = 120f;
     public float hearingRadius = 8f;
-    public float attackRange = 1.8f; // Vurma menzili biraz artýrýldý
+    public float attackRange = 1.8f;
 
     [Header("Hareket & Takip Ayarlarý")]
     public float walkSpeed = 2f;
@@ -29,8 +30,20 @@ public class EnemyAI : MonoBehaviour
     public float wanderRadius = 15f;
     public float searchTurnSpeed = 400f;
 
-    [Header("Görseller")]
-    public GameObject alertIcon;
+    [Header("Ses ve Reaksiyon Ayarlarý")]
+    public AudioSource enemyAudioSource;
+    public AudioClip alertSound;
+    public Transform meshTransform;
+    public float freakOutIntensity = 0.2f;
+    public float freakOutDuration = 0.3f; // SADECE BU KADAR SÜRE TÝTREYECEK
+
+    [Header("Kamera Sarsýntýsý (Çýðlýk)")]
+    public float shakeRadius = 30f;
+    public float shakeDuration = 0.5f;
+    public float shakeMagnitude = 0.3f;
+
+    private Vector3 originalMeshLocalPos;
+    private Coroutine freakOutCoroutine; // Titremeyi kontrol etmek için
 
     private NavMeshAgent agent;
     public Transform currentTarget;
@@ -43,8 +56,12 @@ public class EnemyAI : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        if (alertIcon != null) alertIcon.SetActive(false);
         if (agent != null) agent.angularSpeed = 800f;
+
+        if (meshTransform != null)
+        {
+            originalMeshLocalPos = meshTransform.localPosition;
+        }
     }
 
     void Update()
@@ -58,10 +75,11 @@ public class EnemyAI : MonoBehaviour
             return;
         }
 
+        // UPDATE ÝÇÝNDEKÝ SÜREKLÝ TÝTREME KODU BURADAN SÝLÝNDÝ
+
         switch (currentState)
         {
             case AIState.Stunned:
-                // KÖR OLDU! Olduðu yere çivilenir ve kaymasýný engelleriz
                 if (agent.isActiveAndEnabled)
                 {
                     agent.isStopped = true;
@@ -106,13 +124,11 @@ public class EnemyAI : MonoBehaviour
                     if (distToPlayer > sprintDistance) agent.speed = runSpeed;
                     else agent.speed = stalkSpeed;
 
-                    // --- YENÝ VURMA MANTIÐI (Cooldown ile) ---
                     if (distToPlayer <= attackRange)
                     {
-                        agent.isStopped = true; // Vururken dur
+                        agent.isStopped = true;
                         transform.LookAt(new Vector3(currentTarget.position.x, transform.position.y, currentTarget.position.z));
 
-                        // Eðer son vuruþun üzerinden yeterli zaman geçtiyse VUR
                         if (Time.time >= lastAttackTime + attackCooldown)
                         {
                             PlayerStats pStats = currentTarget.GetComponentInParent<PlayerStats>();
@@ -126,7 +142,7 @@ public class EnemyAI : MonoBehaviour
                     }
                     else
                     {
-                        agent.isStopped = false; // Menzilden çýkarsan tekrar koþ
+                        agent.isStopped = false;
                         agent.SetDestination(currentTarget.position);
                     }
                 }
@@ -214,6 +230,16 @@ public class EnemyAI : MonoBehaviour
     void ChangeState(AIState newState)
     {
         if (currentState == newState) return;
+
+        if ((newState == AIState.Alert || newState == AIState.Chase) && (currentState == AIState.Patrol || currentState == AIState.Search))
+        {
+            PlayAlertReaction();
+        }
+        else if (newState == AIState.Patrol || newState == AIState.Stunned)
+        {
+            StopFreakingOut();
+        }
+
         if (newState == AIState.Chase && currentTarget != null)
         {
             transform.LookAt(new Vector3(currentTarget.position.x, transform.position.y, currentTarget.position.z));
@@ -221,10 +247,71 @@ public class EnemyAI : MonoBehaviour
         }
 
         currentState = newState;
-        if (alertIcon != null) alertIcon.SetActive(newState == AIState.Alert || newState == AIState.Chase);
 
         if (newState == AIState.Patrol) agent.speed = walkSpeed;
         if (newState == AIState.Search) agent.speed = runSpeed;
+    }
+
+    // --- YENÝLENEN KISA SÜRELÝ REAKSÝYON ---
+    void PlayAlertReaction()
+    {
+        // 1. Çýðlýk/Ses Çal
+        if (enemyAudioSource != null && alertSound != null && !enemyAudioSource.isPlaying)
+        {
+            enemyAudioSource.PlayOneShot(alertSound);
+        }
+
+        // 2. Modeli SADECE BÝR ANLIÐINA titret
+        if (meshTransform != null)
+        {
+            if (freakOutCoroutine != null) StopCoroutine(freakOutCoroutine);
+            freakOutCoroutine = StartCoroutine(FreakOutRoutine());
+        }
+
+        // 3. Yakýndaki Oyuncularýn Kamerasýný Sars
+        Collider[] colliders = Physics.OverlapSphere(transform.position, shakeRadius);
+        foreach (Collider col in colliders)
+        {
+            if (col.CompareTag("Player"))
+            {
+                CameraShake camShake = col.GetComponentInChildren<CameraShake>();
+                if (camShake != null)
+                {
+                    float distance = Vector3.Distance(transform.position, col.transform.position);
+                    float distanceFactor = 1f - (distance / shakeRadius);
+                    float finalMagnitude = shakeMagnitude * distanceFactor;
+
+                    if (finalMagnitude > 0)
+                    {
+                        StartCoroutine(camShake.Shake(shakeDuration, finalMagnitude));
+                    }
+                }
+            }
+        }
+    }
+
+    // Titreme Ýþlemini Yapan Timer (Süre bitince animasyon bozulmadan yoluna devam eder)
+    IEnumerator FreakOutRoutine()
+    {
+        float elapsed = 0f;
+        while (elapsed < freakOutDuration)
+        {
+            float offsetX = Random.Range(-freakOutIntensity, freakOutIntensity);
+            float offsetZ = Random.Range(-freakOutIntensity, freakOutIntensity);
+            meshTransform.localPosition = originalMeshLocalPos + new Vector3(offsetX, 0, offsetZ);
+
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        // Süre dolduðunda modeli tam orijinal yerine oturt ki animatör sapýtmasýn
+        meshTransform.localPosition = originalMeshLocalPos;
+    }
+
+    void StopFreakingOut()
+    {
+        if (freakOutCoroutine != null) StopCoroutine(freakOutCoroutine);
+        if (meshTransform != null) meshTransform.localPosition = originalMeshLocalPos;
     }
 
     public void StunEnemy(float duration)
@@ -240,13 +327,11 @@ public class EnemyAI : MonoBehaviour
         Debug.Log("<color=cyan>Yaratýk Fenerden KÖR OLDU ve donduruldu!</color>");
     }
 
-    // --- YENÝ EKLENEN HASAR ALMA VE ÖLÜM ---
     public void TakeDamage(float amount)
     {
         health -= amount;
         Debug.Log($"<color=orange>Düþman Hasar Aldý! Kalan Can: {health}</color>");
 
-        // Vurulduðu an direkt sana odaklansýn (Arama modundaysa)
         if (currentState != AIState.Stunned && currentState != AIState.Chase)
         {
             ChangeState(AIState.Chase);
@@ -258,7 +343,6 @@ public class EnemyAI : MonoBehaviour
     void Die()
     {
         Debug.Log("<color=green>DÜÞMAN ÖLDÜRÜLDÜ!</color>");
-        // Ýstersen burada yere kan/loot düþürebilirsin
         Destroy(gameObject);
     }
 }
